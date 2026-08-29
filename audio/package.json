@@ -1,0 +1,30 @@
+{
+  "name": "qwen-course-notes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capture macOS system audio, transcribe it with Qwen3 ASR Realtime, and save Markdown notes.",
+  "main": "./out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "dotenv": "17.4.2",
+    "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "@swc/core": "1.16.1",
+    "@types/node": "22.20.1",
+    "@types/ws": "8.18.1",
+    "electron": "37.10.3",
+    "electron-vite": "5.0.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vitest": "3.2.7"
+  }
+}

@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' ws: wss:"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <title>Qwen 网课实时笔记</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-glow" aria-hidden="true"></div>
+
+        <header class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" role="img">
+              <path d="M7 18.5v-5M12 23V9M17 19.5v-7M22 22V10M27 17v-3" />
+            </svg>
+          </div>
+          <div>
+            <strong>Qwen 课堂笔记</strong>
+            <span>System Audio · macOS</span>
+          </div>
+        </header>
+
+        <section class="intro">
+          <div class="feature-chip">
+            <span class="feature-dot"></span>
+            QWEN3 ASR REALTIME
+          </div>
+          <h1>让课程<br /><em>自己变成笔记</em></h1>
+          <p>捕获电脑内部声音，实时转写并自动保存为 Markdown 原文。</p>
+        </section>
+
+        <section class="control-panel" aria-label="转写控制">
+          <label for="courseTitle">课程标题</label>
+          <div class="input-shell">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.75A2.75 2.75 0 0 0 4 21.75V5.5Z" />
+              <path d="M4 18.5A2.5 2.5 0 0 1 6.5 16H20" />
+            </svg>
+            <input
+              id="courseTitle"
+              type="text"
+              maxlength="80"
+              value="课程笔记"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+
+          <div class="action-row">
+            <button id="startButton" class="button primary">
+              <span class="play-icon" aria-hidden="true"></span>
+              开始转写
+            </button>
+            <button id="stopButton" class="button secondary" disabled title="停止转写" aria-label="停止转写">
+              <span class="stop-icon" aria-hidden="true"></span>
+            </button>
+          </div>
+
+          <div class="capture-health">
+            <div class="health-heading">
+              <span class="health-label">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" />
+                </svg>
+                系统音频
+              </span>
+              <span id="healthState" class="health-state">等待信号</span>
+            </div>
+            <div class="level-track" aria-label="系统音频电平">
+              <div class="level-grid" aria-hidden="true"></div>
+              <div id="levelBar" class="level-bar"></div>
+            </div>
+            <span id="silenceHint" class="silence-hint" hidden>未检测到声音，请确认课程正在播放</span>
+          </div>
+
+          <div id="messageBox" class="message-box" hidden></div>
+        </section>
+
+        <div class="privacy-note">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10M6 10h12v10H6z" />
+          </svg>
+          <span>音频仅用于实时识别<br />原文保存在这台 Mac 上</span>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <header class="workspace-header">
+          <div>
+            <p class="eyebrow">LIVE TRANSCRIPT</p>
+            <h2>实时原文</h2>
+          </div>
+          <div class="workspace-header-actions">
+            <div id="statusBadge" class="status-badge idle">
+              <span class="status-dot-wrap"><span class="status-dot"></span></span>
+              <span id="statusText">尚未开始</span>
+            </div>
+            <button id="settingsButton" class="settings-trigger" type="button" aria-label="打开设置" title="设置">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.9 1.9-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-2.7v-.08A1.7 1.7 0 0 0 11.2 18.4a1.7 1.7 0 0 0-1.88.34l-.06.06-1.9-1.9.06-.06A1.7 1.7 0 0 0 7.76 15a1.7 1.7 0 0 0-1.56-1.03H6v-2.7h.08A1.7 1.7 0 0 0 7.6 10.24a1.7 1.7 0 0 0-.34-1.88L7.2 8.3l1.9-1.9.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1.03-1.56V5h2.7v.08A1.7 1.7 0 0 0 15.8 6.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 1.9 1.9-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03H21v2.7h-.08A1.7 1.7 0 0 0 19.4 15Z" />
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <div id="noteLocation" class="note-location" hidden>
+          <div class="note-path-wrap">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3.5 6.5h6l2 2h9v10h-17z" />
+            </svg>
+            <span>正在保存至</span>
+            <code id="notePath"></code>
+          </div>
+          <button id="revealButton" class="link-button">
+            在 Finder 中显示
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 5 7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        <section class="transcript-card">
+          <header class="document-meta">
+            <div class="document-kind">
+              <span class="document-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 3h8l4 4v14H6z" />
+                  <path d="M14 3v5h4M9 13h6M9 17h4" />
+                </svg>
+              </span>
+              <div>
+                <strong>Markdown 原文</strong>
+                <span>内容将随识别结果实时写入</span>
+              </div>
+            </div>
+            <div class="document-actions">
+              <button
+                id="copyAllButton"
+                class="copy-button"
+                type="button"
+                title="复制所有已确认正文"
+                disabled
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="8" y="8" width="11" height="11" rx="2" />
+                  <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+                </svg>
+                <span id="copyButtonLabel">复制全部</span>
+              </button>
+              <span id="paragraphCount" class="paragraph-count">0 个段落</span>
+            </div>
+          </header>
+
+          <div id="transcript" class="transcript" aria-live="polite">
+            <div id="emptyState" class="empty-state">
+              <div class="empty-visual" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <h3>准备好记录这堂课</h3>
+              <p>播放课程后点击左侧的“开始转写”，<br />识别出的原文会实时出现在这里。</p>
+              <div class="empty-tip">
+                <kbd>⌘</kbd><kbd>Tab</kbd>
+                <span>可以切回课程窗口，转写会在后台继续</span>
+              </div>
+            </div>
+            <div id="finalTranscript" class="final-transcript"></div>
+            <p id="partialTranscript" class="partial-transcript"></p>
+          </div>
+        </section>
+
+        <footer class="workspace-footer">
+          <span><i class="connection-dot"></i>DashScope · 北京区域</span>
+          <span>Qwen3-ASR-Flash</span>
+        </footer>
+      </section>
+    </main>
+
+    <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
+      <form id="settingsForm" class="settings-panel">
+        <header class="settings-header">
+          <div>
+            <p class="settings-eyebrow">PREFERENCES</p>
+            <h2 id="settingsTitle">设置</h2>
+            <p>配置识别密钥和新笔记的保存位置。</p>
+          </div>
+          <button id="settingsCloseButton" class="settings-close" type="button" aria-label="关闭设置">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m7 7 10 10M17 7 7 17" />
+            </svg>
+          </button>
+        </header>
+
+        <div class="settings-content">
+          <section class="setting-field">
+            <div class="setting-label-row">
+              <div>
+                <label for="apiKeyInput">DashScope API Key</label>
+                <p>密钥由 macOS 安全加密，只会在主进程中使用。</p>
+              </div>
+              <span id="apiKeyStatus" class="configuration-status"></span>
+            </div>
+            <div class="settings-input-shell">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14.5 9.5 20 4M17 4h3v3M13 11a5 5 0 1 1-2-2l5 5-2 2-1.5-1.5L11 16l-1.5-1.5" />
+              </svg>
+              <input
+                id="apiKeyInput"
+                type="password"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="输入新的 API Key"
+                aria-describedby="apiKeyHint"
+              />
+            </div>
+            <div id="apiKeyHint" class="setting-field-meta">
+              <span>留空将保留当前设置</span>
+              <button id="clearApiKeyButton" class="settings-text-button danger" type="button" hidden>
+                清除已保存密钥
+              </button>
+            </div>
+          </section>
+
+          <section class="setting-field">
+            <div class="setting-label-row">
+              <div>
+                <label for="noteDirectoryInput">笔记保存位置</label>
+                <p>只影响之后新建的 Markdown 笔记，不会移动已有文件。</p>
+              </div>
+              <span id="noteDirectoryMode" class="configuration-status"></span>
+            </div>
+            <div class="directory-control">
+              <div class="settings-input-shell directory-input-shell">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3.5 6.5h6l2 2h9v10h-17z" />
+                </svg>
+                <input id="noteDirectoryInput" type="text" readonly />
+              </div>
+              <button id="chooseNoteDirectoryButton" class="settings-secondary-button" type="button">
+                选择文件夹
+              </button>
+            </div>
+            <div class="setting-field-meta">
+              <span>可随时在 Finder 中选择其他文件夹</span>
+              <button id="resetNoteDirectoryButton" class="settings-text-button" type="button">
+                恢复默认位置
+              </button>
+            </div>
+          </section>
+
+          <div id="settingsError" class="settings-error" role="alert" hidden></div>
+        </div>
+
+        <footer class="settings-footer">
+          <button id="settingsCancelButton" class="settings-cancel-button" type="button">取消</button>
+          <button id="settingsSaveButton" class="settings-save-button" type="submit">保存设置</button>
+        </footer>
+      </form>
+    </dialog>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
