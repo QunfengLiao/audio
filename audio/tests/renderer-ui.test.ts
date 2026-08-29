@@ -21,4 +21,15 @@ describe('transcript renderer UI', () => {
     expect(transcriptRules).toContain('width: 100%')
     expect(transcriptRules).toContain('overflow-wrap: anywhere')
   })
+
+  it('provides platform-aware labels without Mac-only storage wording', () => {
+    expect(html).toContain('id="platformLabel"')
+    expect(html).toContain('id="revealButtonLabel"')
+    expect(html).toContain('id="directoryPickerHint"')
+    expect(html).toContain('id="switchShortcutKey"')
+    expect(html).toContain('密钥由系统安全存储加密')
+    expect(html).toContain('原文保存在这台电脑上')
+    expect(html).not.toContain('原文保存在这台 Mac 上')
+    expect(html).not.toContain('密钥由 macOS 安全加密')
+  })
 })

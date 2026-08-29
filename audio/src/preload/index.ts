@@ -8,8 +8,10 @@ import {
   type StartSessionRequest,
   type StartSessionResult
 } from '../shared/contracts'
+import { normalizeRuntimePlatform } from '../shared/runtime-platform'
 
 const api: QwenNotesApi = {
+  platform: normalizeRuntimePlatform(process.platform),
   startSession(request: StartSessionRequest): Promise<StartSessionResult> {
     return ipcRenderer.invoke(IPC_CHANNELS.start, request)
   },

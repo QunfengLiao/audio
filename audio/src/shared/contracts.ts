@@ -1,3 +1,5 @@
+import type { RuntimePlatform } from './runtime-platform'
+
 export const IPC_CHANNELS = {
   start: 'transcription:start',
   audio: 'transcription:audio',
@@ -53,6 +55,7 @@ export type SessionEvent =
   | { kind: 'saved'; notePath: string }
 
 export interface QwenNotesApi {
+  readonly platform: RuntimePlatform
   startSession(request: StartSessionRequest): Promise<StartSessionResult>
   sendAudio(chunk: ArrayBuffer): void
   stopSession(): Promise<void>

@@ -2,12 +2,14 @@
   "name": "qwen-course-notes",
   "version": "1.0.0",
   "private": true,
-  "description": "Capture macOS system audio, transcribe it with Qwen3 ASR Realtime, and save Markdown notes.",
+  "description": "Capture Windows or macOS system audio, transcribe it with Qwen3 ASR Realtime, and save Markdown notes.",
   "main": "./out/main/index.js",
   "type": "module",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
+    "package:win": "npm run build && electron-builder --win nsis --x64",
+    "package:mac": "npm run build && electron-builder --mac dmg --arm64",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
@@ -22,9 +24,55 @@
     "@types/node": "22.20.1",
     "@types/ws": "8.18.1",
     "electron": "37.10.3",
+    "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
     "typescript": "5.9.3",
     "vite": "7.3.6",
     "vitest": "3.2.7"
+  },
+  "build": {
+    "appId": "com.qwencoursenotes.app",
+    "productName": "Qwen 课堂笔记",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.education",
+      "artifactName": "Qwen-Course-Notes-${version}-${arch}.${ext}",
+      "extendInfo": {
+        "NSAudioCaptureUsageDescription": "Qwen 课堂笔记需要访问系统音频，以便将课程内容实时转写为文字。"
+      }
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Qwen-Course-Notes-${version}-${arch}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Qwen 课堂笔记"
+    }
   }
 }

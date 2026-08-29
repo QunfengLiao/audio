@@ -1,4 +1,9 @@
 import workletUrl from './pcm-capture.worklet.ts?worker&url'
+import {
+  getPlatformPresentation,
+  isSupportedRuntimePlatform,
+  type RuntimePlatform
+} from '../../../shared/runtime-platform'
 import { calculateRms, copyPcmBuffer, Pcm16Resampler } from './pcm-resampler'
 
 export interface CaptureCallbacks {
@@ -22,7 +27,12 @@ export class SystemAudioCapture {
 
   private constructor(private readonly stream: MediaStream) {}
 
-  static async request(): Promise<SystemAudioCapture> {
+  static async request(platform: RuntimePlatform): Promise<SystemAudioCapture> {
+    const presentation = getPlatformPresentation(platform)
+    if (!isSupportedRuntimePlatform(platform)) {
+      throw new Error(presentation.unsupportedMessage)
+    }
+
     const stream = await navigator.mediaDevices.getDisplayMedia({
       audio: true,
       video: {
@@ -34,7 +44,7 @@ export class SystemAudioCapture {
 
     if (stream.getAudioTracks().length === 0) {
       stream.getTracks().forEach((track) => track.stop())
-      throw new Error('没有获得系统音频轨道，请检查“屏幕与系统音频录制”权限')
+      throw new Error(presentation.missingAudioTrackMessage)
     }
 
     for (const videoTrack of stream.getVideoTracks()) videoTrack.enabled = false

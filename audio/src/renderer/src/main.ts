@@ -1,4 +1,5 @@
 import type { PublicSettings, SessionEvent, SessionPhase } from '../../shared/contracts'
+import { getPlatformPresentation } from '../../shared/runtime-platform'
 import { buildTranscriptText } from '../../shared/transcript-text'
 import { SystemAudioCapture } from './audio/system-audio-capture'
 import { buildSaveSettingsRequest, clearApiKeyDraft } from './settings-form'
@@ -35,6 +36,13 @@ const noteDirectoryMode = element<HTMLSpanElement>('noteDirectoryMode')
 const chooseNoteDirectoryButton = element<HTMLButtonElement>('chooseNoteDirectoryButton')
 const resetNoteDirectoryButton = element<HTMLButtonElement>('resetNoteDirectoryButton')
 const settingsError = element<HTMLDivElement>('settingsError')
+const platformLabel = element<HTMLSpanElement>('platformLabel')
+const revealButtonLabel = element<HTMLSpanElement>('revealButtonLabel')
+const directoryPickerHint = element<HTMLSpanElement>('directoryPickerHint')
+const switchShortcutKey = element<HTMLElement>('switchShortcutKey')
+
+const runtimePlatform = window.qwenNotes.platform
+const platformPresentation = getPlatformPresentation(runtimePlatform)
 
 let capture: SystemAudioCapture | undefined
 let currentNotePath = ''
@@ -52,6 +60,8 @@ let settingsCanOpen = true
 let messageTimer: number | undefined
 const finalizedTranscriptParagraphs: string[] = []
 let copyFeedbackTimer: number | undefined
+
+applyPlatformPresentation()
 
 startButton.addEventListener('click', () => void startTranscription())
 stopButton.addEventListener('click', () => void stopTranscription())
@@ -114,7 +124,7 @@ async function startTranscription(): Promise<void> {
   let sessionStarted = false
 
   try {
-    requestedCapture = await SystemAudioCapture.request()
+    requestedCapture = await SystemAudioCapture.request(runtimePlatform)
     const result = await window.qwenNotes.startSession({ title: courseTitle.value })
     sessionStarted = true
     currentNotePath = result.notePath
@@ -488,9 +498,16 @@ function scrollTranscriptToEnd(): void {
 function userFacingError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
   if (message.includes('Permission') || message.includes('permission') || message.includes('NotAllowed')) {
-    return '系统音频权限被拒绝。请在“系统设置 → 隐私与安全性 → 屏幕与系统音频录制”中允许 Electron 或终端，然后重启应用。'
+    return platformPresentation.permissionDeniedMessage
   }
   return message.replace(/^Error invoking remote method '[^']+': Error:\s*/, '')
+}
+
+function applyPlatformPresentation(): void {
+  platformLabel.textContent = platformPresentation.brandLabel
+  revealButtonLabel.textContent = platformPresentation.revealButtonLabel
+  directoryPickerHint.textContent = platformPresentation.directoryPickerHint
+  switchShortcutKey.textContent = platformPresentation.applicationSwitchModifier
 }
 
 function element<T extends HTMLElement>(id: string): T {

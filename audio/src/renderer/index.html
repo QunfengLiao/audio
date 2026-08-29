@@ -23,7 +23,7 @@
           </div>
           <div>
             <strong>Qwen 课堂笔记</strong>
-            <span>System Audio · macOS</span>
+            <span id="platformLabel">System Audio · macOS</span>
           </div>
         </header>
 
@@ -87,7 +87,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10M6 10h12v10H6z" />
           </svg>
-          <span>音频仅用于实时识别<br />原文保存在这台 Mac 上</span>
+          <span>音频仅用于实时识别<br />原文保存在这台电脑上</span>
         </div>
       </aside>
 
@@ -120,7 +120,7 @@
             <code id="notePath"></code>
           </div>
           <button id="revealButton" class="link-button">
-            在 Finder 中显示
+            <span id="revealButtonLabel">在 Finder 中显示</span>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="m9 5 7 7-7 7" />
             </svg>
@@ -167,7 +167,7 @@
               <h3>准备好记录这堂课</h3>
               <p>播放课程后点击左侧的“开始转写”，<br />识别出的原文会实时出现在这里。</p>
               <div class="empty-tip">
-                <kbd>⌘</kbd><kbd>Tab</kbd>
+                <kbd id="switchShortcutKey">⌘</kbd><kbd>Tab</kbd>
                 <span>可以切回课程窗口，转写会在后台继续</span>
               </div>
             </div>
@@ -203,7 +203,7 @@
             <div class="setting-label-row">
               <div>
                 <label for="apiKeyInput">DashScope API Key</label>
-                <p>密钥由 macOS 安全加密，只会在主进程中使用。</p>
+                <p>密钥由系统安全存储加密，只会在主进程中使用。</p>
               </div>
               <span id="apiKeyStatus" class="configuration-status"></span>
             </div>
@@ -248,7 +248,7 @@
               </button>
             </div>
             <div class="setting-field-meta">
-              <span>可随时在 Finder 中选择其他文件夹</span>
+              <span id="directoryPickerHint">可随时在 Finder 中选择其他文件夹</span>
               <button id="resetNoteDirectoryButton" class="settings-text-button" type="button">
                 恢复默认位置
               </button>

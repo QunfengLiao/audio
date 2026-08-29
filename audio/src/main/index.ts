@@ -13,13 +13,20 @@ import {
   type OpenDialogOptions
 } from 'electron'
 import { IPC_CHANNELS, type SessionEvent, type StartSessionRequest } from '../shared/contracts'
+import {
+  isSupportedRuntimePlatform,
+  normalizeRuntimePlatform
+} from '../shared/runtime-platform'
 import { writeTranscriptToClipboard } from './clipboard-writer'
+import { resolveDefaultNoteDirectory } from './default-note-directory'
 import { registerSettingsIpc } from './settings/settings-ipc'
 import { resolveRuntimeSettings } from './settings/runtime-settings'
 import { SettingsStore } from './settings/settings-store'
 import { TranscriptionSession } from './transcription-session'
 
-loadEnv({ path: resolve(process.cwd(), '.env') })
+if (!app.isPackaged) {
+  loadEnv({ path: resolve(process.cwd(), '.env') })
+}
 
 // Electron 39+ otherwise uses CoreAudio Tap, whose Info.plist permission key is
 // unavailable when the app is launched through a development terminal. The
@@ -35,7 +42,6 @@ if (remoteDebuggingPort && /^\d+$/.test(remoteDebuggingPort)) {
 
 let mainWindow: BrowserWindow | null = null
 let activeSession: TranscriptionSession | undefined
-const defaultNoteDirectory = resolve(process.cwd(), 'doc')
 
 function emit(event: SessionEvent): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -45,20 +51,29 @@ function emit(event: SessionEvent): void {
 
 function setupDisplayCapture(): void {
   session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: 0, height: 0 }
-    })
-    const primaryScreen = sources[0]
-    if (!primaryScreen) {
+    if (!isSupportedRuntimePlatform(normalizeRuntimePlatform(process.platform))) {
       callback({})
       return
     }
-    callback({ video: primaryScreen, audio: 'loopback' })
+
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 0, height: 0 }
+      })
+      const primaryScreen = sources[0]
+      if (!primaryScreen) {
+        callback({})
+        return
+      }
+      callback({ video: primaryScreen, audio: 'loopback' })
+    } catch {
+      callback({})
+    }
   })
 }
 
-function setupIpc(settingsStore: SettingsStore): void {
+function setupIpc(settingsStore: SettingsStore, defaultNoteDirectory: string): void {
   registerSettingsIpc({
     registrar: {
       handle(channel, handler) {
@@ -164,6 +179,11 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  const defaultNoteDirectory = resolveDefaultNoteDirectory({
+    isPackaged: app.isPackaged,
+    workingDirectory: process.cwd(),
+    documentsDirectory: app.getPath('documents')
+  })
   const settingsStore = new SettingsStore({
     filePath: resolve(app.getPath('userData'), 'settings.json'),
     codec: {
@@ -173,7 +193,7 @@ app.whenReady().then(() => {
     }
   })
   setupDisplayCapture()
-  setupIpc(settingsStore)
+  setupIpc(settingsStore, defaultNoteDirectory)
   createWindow()
 
   app.on('activate', () => {

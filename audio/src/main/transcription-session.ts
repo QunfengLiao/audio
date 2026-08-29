@@ -1,4 +1,3 @@
-import { resolve } from 'node:path'
 import type { SessionEvent } from '../shared/contracts'
 import { NoteWriter } from './notes/note-writer'
 import { QwenRealtimeClient } from './qwen/realtime-client'
@@ -9,7 +8,7 @@ import {
 } from './qwen/protocol'
 
 export interface TranscriptionSessionOptions extends QwenConnectionOptions {
-  outputDirectory?: string
+  outputDirectory: string
   emit(event: SessionEvent): void
   onClosed(session: TranscriptionSession): void
 }
@@ -22,7 +21,7 @@ export class TranscriptionSession {
   constructor(private readonly options: TranscriptionSessionOptions) {
     const model = options.model?.trim() || DEFAULT_MODEL
     this.writer = new NoteWriter({
-      outputDirectory: options.outputDirectory ?? resolve(process.cwd(), 'doc'),
+      outputDirectory: options.outputDirectory,
       model
     })
 
