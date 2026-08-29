@@ -23,6 +23,7 @@
 ## File Structure
 
 - `src/main/notes/note-writer.ts`: derive and create the session date directory.
+- `src/main/index.ts`: set the settings system's default note base to the project `doc/` directory.
 - `src/main/transcription-session.ts`: change the default output base from `notes/` to `doc/`.
 - `src/shared/transcript-text.ts`: pure finalized-paragraph normalization and joining.
 - `src/main/clipboard-writer.ts`: validate an IPC payload and call an injected clipboard writer.
@@ -46,10 +47,11 @@
 **Files:**
 - Modify: `tests/note-writer.test.ts`
 - Modify: `src/main/notes/note-writer.ts`
+- Modify: `src/main/index.ts`
 - Modify: `src/main/transcription-session.ts`
 
 **Interfaces:**
-- Consumes: `NoteWriterOptions.outputDirectory` as the base output directory and `now(): Date` as the session start time.
+- Consumes: `NoteWriterOptions.outputDirectory` as the configured base output directory and `now(): Date` as the session start time. The settings feature may provide a custom base; otherwise the base is `<project>/doc`.
 - Produces: `NoteWriter.create(titleInput: string): string`, returning a path below `<base>/YY/M/D/`.
 
 - [ ] **Step 1: Change the path expectations before production code**
@@ -93,9 +95,11 @@ const baseName = `${timestamp}_${safeFilename(title)}`
 const notePath = uniquePath(outputDirectory, baseName)
 ```
 
-In `TranscriptionSession`, change only the default base:
+Change both default-base declarations while preserving a custom directory selected in Settings:
 
 ```ts
+const defaultNoteDirectory = resolve(process.cwd(), 'doc')
+
 outputDirectory: options.outputDirectory ?? resolve(process.cwd(), 'doc'),
 ```
 
@@ -108,7 +112,7 @@ Expected: all `note-writer` tests PASS.
 - [ ] **Step 5: Commit the storage behavior**
 
 ```bash
-git add tests/note-writer.test.ts src/main/notes/note-writer.ts src/main/transcription-session.ts
+git add tests/note-writer.test.ts src/main/notes/note-writer.ts src/main/index.ts src/main/transcription-session.ts
 git commit -m "feat: group transcript notes by date"
 ```
 
