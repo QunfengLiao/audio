@@ -4,7 +4,7 @@ dist/
 release/
 coverage/
 .env
-notes/
+/notes/
 doc/
 .DS_Store
 *.log
