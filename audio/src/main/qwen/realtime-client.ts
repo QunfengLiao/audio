@@ -137,7 +137,7 @@ export class QwenRealtimeClient {
         headers: {
           Authorization: `Bearer ${this.options.apiKey}`,
           'OpenAI-Beta': 'realtime=v1',
-          'User-Agent': 'qwen-course-notes/1.0.0'
+          'User-Agent': 'keji-course-notes/1.0.0'
         }
       })
       this.socket = socket

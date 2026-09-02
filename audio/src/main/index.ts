@@ -153,7 +153,7 @@ function createWindow(): void {
     height: 720,
     minWidth: 720,
     minHeight: 560,
-    title: 'Qwen 网课实时笔记',
+    title: '课迹 · 网课实时笔记',
     backgroundColor: '#f5f3ee',
     webPreferences: {
       preload: resolve(import.meta.dirname, '../preload/index.mjs'),

@@ -1,4 +1,6 @@
-# Qwen 网课实时笔记
+# 课迹 · 网课实时笔记
+
+> 听见课程，落成笔记。一堂课，一份完整记录。
 
 一个支持 Windows 和 macOS 的 Electron + TypeScript 小工具：采集电脑当前播放的系统声音，使用阿里云百炼 `qwen3-asr-flash-realtime` 实时转写，并把最终确认的原文逐段写入 Markdown。
 
@@ -59,7 +61,7 @@ DASHSCOPE_WORKSPACE_ID=你的工作空间ID
 默认保存位置：
 
 - 开发模式：项目的 `doc/` 目录。
-- 安装后的应用：系统“文档”目录中的 `Qwen课堂笔记` 文件夹。
+- 安装后的应用：系统“文档”目录中的 `课迹` 文件夹。
 - 自定义位置：设置页中选择的文件夹。
 
 所有位置都会按会话开始日期创建 `YY/M/D/` 子目录，例如：
@@ -98,7 +100,7 @@ npm run package:win
 输出文件：
 
 ```text
-release/Qwen-Course-Notes-1.0.0-x64-Setup.exe
+release/Keji-Course-Notes-1.0.0-x64-Setup.exe
 ```
 
 这是带安装向导的 NSIS 安装程序，可选择安装目录，并创建桌面与开始菜单快捷方式。从 macOS 跨平台生成该安装程序需要额外安装 Wine，或使用带 Wine 的 Docker 构建环境。
@@ -114,7 +116,7 @@ npm run package:mac
 输出文件：
 
 ```text
-release/Qwen-Course-Notes-1.0.0-arm64.dmg
+release/Keji-Course-Notes-1.0.0-arm64.dmg
 ```
 
 本地未配置开发者证书时会生成未签名产物。未签名 `.exe` 可能触发 Windows SmartScreen，未签名且未公证的 `.dmg` 可能触发 macOS Gatekeeper；正式公开分发前应分别配置 Authenticode 签名和 Apple Developer ID 签名、公证。
@@ -134,7 +136,7 @@ release/Qwen-Course-Notes-1.0.0-arm64.dmg
 如果页面有音轨但音量条始终不动：
 
 1. 打开“系统设置 → 隐私与安全性 → 屏幕与系统音频录制”。
-2. 允许 Qwen 课堂笔记；开发模式下允许 Electron 或启动它的终端应用。
+2. 允许课迹；开发模式下允许 Electron 或启动它的终端应用。
 3. 完全退出正在运行的应用，再重新启动。
 
 应用只采集系统播放声音，不使用麦克风，也不会保存屏幕画面或把原始音频写入磁盘。API Key 只存在于 Electron 主进程；通过设置保存时会由系统安全存储加密，渲染页面只能获知“是否已配置”，无法读取密钥内容。

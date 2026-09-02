@@ -8,6 +8,6 @@ export interface DefaultNoteDirectoryOptions {
 
 export function resolveDefaultNoteDirectory(options: DefaultNoteDirectoryOptions): string {
   return options.isPackaged
-    ? resolve(options.documentsDirectory, 'Qwen课堂笔记')
+    ? resolve(options.documentsDirectory, '课迹')
     : resolve(options.workingDirectory, 'doc')
 }

@@ -8,10 +8,12 @@ interface TargetConfiguration {
 }
 
 interface PackageManifest {
+  name: string
   scripts: Record<string, string>
   devDependencies: Record<string, string>
   build: {
     appId: string
+    productName: string
     directories: { output: string }
     files: string[]
     mac: {
@@ -42,7 +44,9 @@ describe('desktop packaging configuration', () => {
   })
 
   it('builds Windows x64 with NSIS and macOS arm64 with DMG', () => {
-    expect(manifest.build.appId).toBe('com.qwencoursenotes.app')
+    expect(manifest.name).toBe('keji-course-notes')
+    expect(manifest.build.appId).toBe('com.keji.coursenotes')
+    expect(manifest.build.productName).toBe('课迹')
     expect(manifest.build.directories.output).toBe('release')
     expect(manifest.build.files).toContain('out/**/*')
     expect(manifest.build.win.target).toEqual([{ target: 'nsis', arch: ['x64'] }])

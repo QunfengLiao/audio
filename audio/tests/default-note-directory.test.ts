@@ -20,6 +20,6 @@ describe('resolveDefaultNoteDirectory', () => {
         workingDirectory: '/Applications',
         documentsDirectory: '/Users/test/Documents'
       })
-    ).toBe(resolve('/Users/test/Documents', 'Qwen课堂笔记'))
+    ).toBe(resolve('/Users/test/Documents', '课迹'))
   })
 })
