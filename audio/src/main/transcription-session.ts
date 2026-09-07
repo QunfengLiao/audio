@@ -28,6 +28,7 @@ export class TranscriptionSession {
     this.client = new QwenRealtimeClient({
       url: buildRealtimeUrl(options),
       apiKey: options.apiKey,
+      workspaceId: options.workspaceId,
       callbacks: {
         onPartial: (itemId, text) => options.emit({ kind: 'partial', itemId, text }),
         onFinal: (itemId, text) => this.handleFinal(itemId, text),

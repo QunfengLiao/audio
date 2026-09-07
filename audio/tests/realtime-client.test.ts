@@ -109,6 +109,97 @@ describe('QwenRealtimeClient', () => {
     expect(connectionCount).toBe(2)
     expect(audioReceivedOnSecondConnection).toBe(true)
   })
+
+  it('waits for the previous socket to close before starting the next session', async () => {
+    const server = await createServer()
+    let connectionCount = 0
+    let liveSocket: import('ws').WebSocket | undefined
+
+    server.on('connection', (socket) => {
+      connectionCount += 1
+      if (liveSocket) {
+        socket.close(1013, 'previous session is still closing')
+        return
+      }
+
+      liveSocket = socket
+      socket.on('close', () => {
+        if (liveSocket === socket) liveSocket = undefined
+      })
+      socket.on('message', (raw) => {
+        const event = JSON.parse(raw.toString()) as { type: string }
+        if (event.type === 'session.update') {
+          socket.send(JSON.stringify({ type: 'session.updated' }))
+        }
+        if (event.type === 'session.finish') {
+          socket.send(JSON.stringify({ type: 'session.finished' }))
+        }
+      })
+    })
+
+    const first = makeClient(server, { closeTimeoutMs: 1_000 })
+    await first.connect()
+    await first.finish()
+
+    const second = makeClient(server, { closeTimeoutMs: 1_000 })
+    await second.connect()
+    await second.finish()
+
+    expect(connectionCount).toBe(2)
+  })
+
+  it('includes the server close code and reason when readiness fails', async () => {
+    const server = await createServer()
+    let connectionCount = 0
+    server.on('connection', (socket) => {
+      connectionCount += 1
+      socket.close(1008, 'invalid session configuration')
+    })
+
+    const client = makeClient(server)
+    await expect(client.connect()).rejects.toThrow(
+      'WebSocket 在会话就绪前关闭（code=1008，reason=invalid session configuration）'
+    )
+    expect(connectionCount).toBe(1)
+  })
+
+  it('retries capacity throttling while establishing the initial session', async () => {
+    const server = await createServer()
+    let connectionCount = 0
+    const statuses: string[] = []
+
+    server.on('connection', (socket) => {
+      connectionCount += 1
+      if (connectionCount < 3) {
+        socket.close(
+          1011,
+          'Too many requests. Your requests are being throttled due to system capacity limits.'
+        )
+        return
+      }
+
+      socket.on('message', (raw) => {
+        const event = JSON.parse(raw.toString()) as { type: string }
+        if (event.type === 'session.update') {
+          socket.send(JSON.stringify({ type: 'session.updated' }))
+        }
+        if (event.type === 'session.finish') {
+          socket.send(JSON.stringify({ type: 'session.finished' }))
+        }
+      })
+    })
+
+    const client = makeClient(server, {
+      initialRetryDelaysMs: [5, 10],
+      onStatus: (_phase, message) => statuses.push(message)
+    })
+    await client.connect()
+    await client.finish()
+
+    expect(connectionCount).toBe(3)
+    expect(statuses).toContain('千问服务繁忙，5 毫秒后自动重试（1/2）…')
+    expect(statuses).toContain('千问服务繁忙，10 毫秒后自动重试（2/2）…')
+  })
 })
 
 async function createServer(): Promise<WebSocketServer> {
@@ -125,15 +216,19 @@ function makeClient(
     onFinal?: (itemId: string, text: string) => void
     onStatus?: (phase: string, message: string) => void
     retryDelaysMs?: readonly number[]
-  }
+    initialRetryDelaysMs?: readonly number[]
+    closeTimeoutMs?: number
+  } = {}
 ): QwenRealtimeClient {
   const address = server.address() as AddressInfo
   return new QwenRealtimeClient({
     url: `ws://127.0.0.1:${address.port}/realtime?model=test`,
     apiKey: 'sk-test',
     retryDelaysMs: overrides.retryDelaysMs,
+    initialRetryDelaysMs: overrides.initialRetryDelaysMs,
     connectionTimeoutMs: 1_000,
     finishTimeoutMs: 1_000,
+    closeTimeoutMs: overrides.closeTimeoutMs,
     callbacks: {
       onPartial: overrides.onPartial ?? (() => undefined),
       onFinal: overrides.onFinal ?? (() => undefined),

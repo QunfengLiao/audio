@@ -18,14 +18,18 @@ export interface RealtimeClientCallbacks {
 export interface RealtimeClientOptions {
   url: string
   apiKey: string
+  workspaceId?: string
   callbacks: RealtimeClientCallbacks
   maxQueuedAudioBytes?: number
   retryDelaysMs?: readonly number[]
+  initialRetryDelaysMs?: readonly number[]
   connectionTimeoutMs?: number
   finishTimeoutMs?: number
+  closeTimeoutMs?: number
 }
 
 const DEFAULT_RETRY_DELAYS = [500, 1_000, 2_000] as const
+const DEFAULT_INITIAL_RETRY_DELAYS = [1_000, 2_000, 4_000, 8_000] as const
 const DEFAULT_MAX_QUEUE_BYTES = 16_000 * 2 * 10
 
 export class QwenRealtimeClient {
@@ -38,17 +42,22 @@ export class QwenRealtimeClient {
   private queuedAudioBytes = 0
   private queueWarningSent = false
   private finishResolve: (() => void) | undefined
+  private closePromise: Promise<void> | undefined
 
   private readonly retryDelaysMs: readonly number[]
+  private readonly initialRetryDelaysMs: readonly number[]
   private readonly maxQueuedAudioBytes: number
   private readonly connectionTimeoutMs: number
   private readonly finishTimeoutMs: number
+  private readonly closeTimeoutMs: number
 
   constructor(private readonly options: RealtimeClientOptions) {
     this.retryDelaysMs = options.retryDelaysMs ?? DEFAULT_RETRY_DELAYS
+    this.initialRetryDelaysMs = options.initialRetryDelaysMs ?? DEFAULT_INITIAL_RETRY_DELAYS
     this.maxQueuedAudioBytes = options.maxQueuedAudioBytes ?? DEFAULT_MAX_QUEUE_BYTES
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 10_000
     this.finishTimeoutMs = options.finishTimeoutMs ?? 10_000
+    this.closeTimeoutMs = options.closeTimeoutMs ?? 2_000
   }
 
   async connect(): Promise<void> {
@@ -60,13 +69,35 @@ export class QwenRealtimeClient {
     this.finishing = false
     this.options.callbacks.onStatus('connecting', '正在连接千问实时识别…')
 
-    try {
-      await this.openSocket()
-    } catch (error) {
-      this.keepAlive = false
-      this.closeSocket()
-      throw new Error(`连接千问失败：${errorMessage(error)}`)
+    let lastError: unknown
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await this.openSocket()
+        return
+      } catch (error) {
+        lastError = error
+        await this.closeSocket()
+
+        if (
+          !this.keepAlive ||
+          this.finishing ||
+          !isTransientCapacityError(error) ||
+          attempt >= this.initialRetryDelaysMs.length
+        ) {
+          break
+        }
+
+        const retryDelayMs = this.initialRetryDelaysMs[attempt] ?? 0
+        this.options.callbacks.onStatus(
+          'connecting',
+          `千问服务繁忙，${formatDelay(retryDelayMs)}后自动重试（${attempt + 1}/${this.initialRetryDelaysMs.length}）…`
+        )
+        await delay(retryDelayMs)
+      }
     }
+
+    this.keepAlive = false
+    throw new Error(`连接千问失败：${errorMessage(lastError)}`)
   }
 
   appendAudio(chunk: Uint8Array): void {
@@ -96,7 +127,7 @@ export class QwenRealtimeClient {
     this.options.callbacks.onStatus('stopping', '正在等待最后一句识别结果…')
 
     if (!this.ready || this.socket?.readyState !== WebSocket.OPEN) {
-      this.closeSocket()
+      await this.closeSocket()
       return
     }
 
@@ -118,7 +149,7 @@ export class QwenRealtimeClient {
       this.options.callbacks.onWarning('等待最后一句超时，已保留此前完成的全部笔记。')
     }
 
-    this.closeSocket()
+    await this.closeSocket()
   }
 
   dispose(): void {
@@ -128,7 +159,7 @@ export class QwenRealtimeClient {
     this.queuedAudioBytes = 0
     this.finishResolve?.()
     this.finishResolve = undefined
-    this.closeSocket()
+    void this.closeSocket()
   }
 
   private openSocket(): Promise<void> {
@@ -137,7 +168,10 @@ export class QwenRealtimeClient {
         headers: {
           Authorization: `Bearer ${this.options.apiKey}`,
           'OpenAI-Beta': 'realtime=v1',
-          'User-Agent': 'keji-course-notes/1.0.0'
+          'User-Agent': 'qwen-course-notes/1.0.0',
+          ...(this.options.workspaceId
+            ? { 'X-DashScope-WorkSpace': this.options.workspaceId.trim() }
+            : {})
         }
       })
       this.socket = socket
@@ -176,15 +210,17 @@ export class QwenRealtimeClient {
       })
 
       socket.on('error', (error) => {
-        if (!becameReady) rejectReady(error)
+        if (!becameReady) rejectReady(new Error(`WebSocket 连接错误：${errorMessage(error)}`))
       })
 
-      socket.on('close', () => {
+      socket.on('close', (code, reason) => {
         clearTimeout(timeout)
         if (this.socket !== socket) return
 
         this.ready = false
-        if (!settled) rejectReady(new Error('WebSocket 在会话就绪前关闭'))
+        if (!settled) {
+          rejectReady(new WebSocketCloseBeforeReadyError(code, reason))
+        }
         if (becameReady && this.keepAlive && !this.finishing) {
           void this.reconnect()
         }
@@ -241,9 +277,12 @@ export class QwenRealtimeClient {
       return
     }
 
+    const wasReady = this.ready && this.socket === socket
     rejectReady(new Error(message))
-    this.keepAlive = false
-    this.options.callbacks.onFatal(message)
+    if (wasReady) {
+      this.keepAlive = false
+      this.options.callbacks.onFatal(message)
+    }
     socket.close()
   }
 
@@ -322,15 +361,50 @@ export class QwenRealtimeClient {
     this.socket.send(JSON.stringify(createAudioAppend(chunk)))
   }
 
-  private closeSocket(): void {
-    const socket = this.socket
-    this.socket = undefined
-    this.ready = false
-    if (!socket) return
+  private closeSocket(): Promise<void> {
+    if (this.closePromise) return this.closePromise
 
-    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-      socket.close(1000, 'ASR session closed')
+    const socket = this.socket
+    if (!socket) return Promise.resolve()
+
+    if (this.socket === socket) {
+      this.socket = undefined
+      this.ready = false
     }
+
+    if (socket.readyState === WebSocket.CLOSED) return Promise.resolve()
+
+    this.closePromise = new Promise<void>((resolve) => {
+      let settled = false
+      let timeout: ReturnType<typeof setTimeout>
+
+      const finish = (): void => {
+        if (settled) return
+        settled = true
+        clearTimeout(timeout)
+        socket.removeListener('close', finish)
+        resolve()
+      }
+
+      timeout = setTimeout(() => {
+        socket.terminate()
+        finish()
+      }, this.closeTimeoutMs)
+      socket.once('close', finish)
+      try {
+        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+          socket.close(1000, 'ASR session closed')
+        } else {
+          finish()
+        }
+      } catch {
+        finish()
+      }
+    }).finally(() => {
+      this.closePromise = undefined
+    })
+
+    return this.closePromise
   }
 }
 
@@ -340,4 +414,40 @@ function delay(milliseconds: number): Promise<void> {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+class WebSocketCloseBeforeReadyError extends Error {
+  readonly closeReason: string
+
+  constructor(
+    readonly code: number,
+    reason: Buffer
+  ) {
+    const closeReason = reason.toString('utf8').trim()
+    super(
+      closeReason
+        ? `WebSocket 在会话就绪前关闭（code=${code}，reason=${closeReason}）`
+        : `WebSocket 在会话就绪前关闭（code=${code}）`
+    )
+    this.name = 'WebSocketCloseBeforeReadyError'
+    this.closeReason = closeReason
+  }
+}
+
+function isTransientCapacityError(error: unknown): boolean {
+  if (
+    error instanceof WebSocketCloseBeforeReadyError &&
+    (error.code === 1011 || error.code === 1013)
+  ) {
+    return true
+  }
+
+  return /\b429\b|too many requests|throttl|capacity limits?|rate limits?/i.test(
+    errorMessage(error)
+  )
+}
+
+function formatDelay(milliseconds: number): string {
+  if (milliseconds < 1_000) return `${milliseconds} 毫秒`
+  return `${milliseconds / 1_000} 秒`
 }
